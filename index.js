@@ -5,6 +5,7 @@ const express = require("express"); // express
 const db = require("./data/db"); // db import from db directory.
 
 const server = express();
+server.use(cors());
 
 server.use(express.json()); // <<< needed to parse json from the body
 
@@ -29,27 +30,25 @@ server.get("/api/users", (req, res) => {
     });
 });
 
-// server.get("/api/users/:id", (req, res) => {
-//   const id = parseInt(req.params.id);
+server.get("/api/users/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  // const id = req.params.id;
 
-// //   if (id) {
-//     db.findById(id)
-//     if(searchedUser.id){
-//         .then(searchedUser => {
-//             res.status(200).json({ searchedUser })
-//           })
-//           .catch(err => {
-//             console.log(`User with ID: ${id} not found`, err);
-//             res.status(500).json([]);
-//           })
-//     }
-
-// //   } else if (id === null) {
-//     res
-//       .status(404)
-//       .json({ message: "The user with the specified ID does not exist." });
-// //   }
-// });
+  db.findById(id)
+    .then(searchedUser => {
+      if (searchedUser) {
+        res.status(200).json({ searchedUser });
+      } else {
+        res
+          .status(404)
+          .json({ message: "The user with the specified ID does not exist." });
+      }
+    })
+    .catch(err => {
+      console.log(`User with ID: ${id} not found`, err);
+      res.status(500).json([]);
+    });
+});
 
 server.post("/api/users", (req, res) => {
   const newUser = req.body;
@@ -66,39 +65,57 @@ server.post("/api/users", (req, res) => {
         });
       });
   } else {
-    // respond with HTTP status code 400 (Bad Request).
-    // return the following JSON response: { errorMessage:
-    //"Please provide name and bio for the user." }.
     console.log("Please provide name and bio for the user.");
     res
       .status(400)
       .json({ errorMessage: "Please provide name and bio for the user." });
-    //   .end();
   }
 });
 
 server.put("/api/users/:id", (req, res) => {
   const id = req.params.id;
   const updatedUser = req.body;
-  db.update(id, updatedUser)
-    .then(userupdate => {
-      res.status(201).json({ userupdate });
-    })
-    .catch(err => {
-      console.log(err);
-      res.status(500).json({ errorMessage: `${err}` });
-    });
+
+  if (updatedUser.name && updatedUser.bio) {
+    db.update(id, updatedUser)
+      .then(userupdate => {
+        if (userupdate) {
+          res.status(201).json({ userupdate });
+        } else {
+          res.status(404).json({
+            message: "The user with the specified ID does not exist."
+          });
+        }
+      })
+      .catch(err => {
+        console.log(err);
+        res
+          .status(500)
+          .json({ error: "The user information could not be modified." });
+      });
+  } else {
+    res
+      .status(400)
+      .json({ errorMessage: "Please provide name and bio for the user." });
+  }
 });
 
 server.delete("/api/users/:id", (req, res) => {
   const id = req.params.id;
+
   db.remove(id)
     .then(deletedUser => {
-      res.status(201).json({ deletedUser });
+      if (deletedUser) {
+        res.status(201).json({ deletedUser });
+      } else {
+        res
+          .status(404)
+          .json({ message: "The user with the specified ID does not exist." });
+      }
     })
     .catch(err => {
       console.log(err);
-      res.status(500).json({ errorMessage: `${err}` });
+      res.status(500).json({ error: "The user could not be removed" });
     });
 });
 
